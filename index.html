@@ -3,99 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OFPPT - Suivi des Absences</title>
+    <title>OFPPT - Gestion Dynamique</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .status-p { border-left: 6px solid #22c55e; }
+        .status-p { border-left: 6px solid #22c55e; background-color: white; }
         .status-a { border-left: 6px solid #ef4444; background-color: #fef2f2; }
         .status-r { border-left: 6px solid #f97316; background-color: #fff7ed; }
-        .active-btn { background-color: #1e40af !important; color: white !important; border-bottom: 4px solid #1d4ed8; }
+        .active-btn { background-color: #1e40af !important; color: white !important; }
+        .loader { border-top-color: #1e40af; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen pb-24">
 
-    <nav class="bg-blue-800 text-white p-4 shadow-lg sticky top-0 z-50">
+    <nav class="bg-blue-900 text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="font-bold text-lg"><i class="fas fa-user-check mr-2"></i> OFPPT Absences</h1>
-            <div id="date-now" class="text-sm opacity-80"></div>
+            <div>
+                <h1 class="font-bold text-lg">OFPPT Appels</h1>
+                <p id="date-display" class="text-xs opacity-75"></p>
+            </div>
+            <button onclick="chargerDonnees()" class="p-2 hover:bg-blue-800 rounded-full transition">
+                <i class="fas fa-sync-alt"></i>
+            </button>
         </div>
     </nav>
 
     <div class="container mx-auto p-4 max-w-2xl">
         
-        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Choisir le Groupe</label>
-                <select id="select-groupe" onchange="changerGroupe()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg font-semibold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="DEV101">Groupe DEV101</option>
-                    <option value="DEV102">Groupe DEV102</option>
-                    <option value="INFO201">Groupe INFO201</option>
-                    <option value="INFO202">Groupe INFO202</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Séance</label>
-                <div class="flex gap-2">
-                    <button onclick="setSeance('Matin', this)" class="seance-btn flex-1 py-2 rounded bg-gray-100 active-btn">Matin</button>
-                    <button onclick="setSeance('Après-midi', this)" class="seance-btn flex-1 py-2 rounded bg-gray-100">Après-midi</button>
-                </div>
-            </div>
+        <div id="loading-overlay" class="hidden text-center py-10">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 mx-auto"></div>
+            <p class="text-gray-600 font-medium">Synchronisation avec Google Sheets...</p>
         </div>
 
-        <div id="liste-container" class="space-y-3 mb-24">
+        <div id="main-content">
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Groupe</label>
+                        <select id="select-groupe" onchange="afficherStagiaires()" class="w-full p-2 bg-gray-50 border rounded-lg font-bold text-blue-900 outline-none">
+                            </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Séance</label>
+                        <select id="select-seance" class="w-full p-2 bg-gray-50 border rounded-lg font-bold text-blue-900 outline-none">
+                            <option value="Matin">Matin</option>
+                            <option value="Après-midi">Après-midi</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-gray-100 border-t border-gray-200">
-            <div class="max-w-2xl mx-auto">
-                <button onclick="envoyerVersGoogle()" id="btn-save" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold shadow-xl hover:bg-blue-800 flex items-center justify-center gap-3 transition-all active:scale-95">
-                    <i class="fas fa-cloud-upload-alt"></i> Enregistrer dans le Cloud
-                </button>
-            </div>
+            <div id="liste-container" class="space-y-3">
+                </div>
+        </div>
+
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl">
+        <div class="container mx-auto max-w-2xl">
+            <button onclick="envoyerAbsences()" id="btn-save" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-blue-800 transition">
+                <i class="fas fa-save"></i> Enregistrer l'appel
+            </button>
         </div>
     </div>
 
     <script>
         // --- CONFIGURATION ---
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxml86Mi4tMDjIb8GjfsG8mmdNqcRv06cUUeL6auNE-f5U42Nz_ukthLE7t7VFJrLsQ/exec"; // <--- METTEZ VOTRE LIEN ICI
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxml86Mi4tMDjIb8GjfsG8mmdNqcRv06cUUeL6auNE-f5U42Nz_ukthLE7t7VFJrLsQ/exec"; // <--- REMPLACEZ PAR VOTRE LIEN
+        let DATA_BASE = {}; 
 
-        const GROUPES = {
-            "DEV101": ["AMRANI Ahmed", "BENNANI Bakr", "CHAKIR Driss", "DAOUDI Fatine", "EL FASSI Omar"],
-            "DEV102": ["GUESSOUS Sara", "HASSANI Khalid", "IDRISSI Leila", "JABRI Amina"],
-            "INFO201": ["KADIRI Youssef", "LALAMI Meriem", "MAZROUI Anas", "NACIRI Houda"],
-            "INFO202": ["OUAZZANI Sami", "QASMI Rim", "RIZKI Adam", "SADIKI Yasmine"]
-        };
+        // Affichage de la date
+        document.getElementById('date-display').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-        let seanceActuelle = "Matin";
-
-        // --- LOGIQUE ---
-
-        // Afficher la date
-        document.getElementById('date-now').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-        function setSeance(val, btn) {
-            seanceActuelle = val;
-            document.querySelectorAll('.seance-btn').forEach(b => b.classList.remove('active-btn'));
-            btn.classList.add('active-btn');
+        // 1. Charger les stagiaires depuis Google Sheets
+        async function chargerDonnees() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('main-content').classList.add('opacity-25');
+            
+            try {
+                const response = await fetch(URL_SCRIPT);
+                DATA_BASE = await response.json();
+                
+                const select = document.getElementById('select-groupe');
+                select.innerHTML = "";
+                
+                Object.keys(DATA_BASE).forEach(groupe => {
+                    let opt = new Option(groupe, groupe);
+                    select.add(opt);
+                });
+                
+                afficherStagiaires();
+            } catch (error) {
+                alert("Erreur de connexion avec la base de données.");
+            } finally {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('opacity-25');
+            }
         }
 
-        function changerGroupe() {
-            const groupeNom = document.getElementById('select-groupe').value;
+        // 2. Afficher la liste du groupe sélectionné
+        function afficherStagiaires() {
+            const groupe = document.getElementById('select-groupe').value;
             const container = document.getElementById('liste-container');
             container.innerHTML = "";
+            
+            if (!DATA_BASE[groupe]) return;
 
-            GROUPES[groupeNom].forEach((nom, index) => {
+            DATA_BASE[groupe].forEach((nom, index) => {
                 const div = document.createElement('div');
-                div.className = "flex items-center justify-between p-4 bg-white rounded-lg shadow-sm transition status-p";
-                div.dataset.nom = nom;
+                div.className = "flex items-center justify-between p-4 rounded-lg shadow-sm transition status-p";
                 div.id = `row-${index}`;
+                div.dataset.nom = nom;
                 div.innerHTML = `
-                    <span class="font-semibold text-gray-700">${nom}</span>
+                    <span class="font-medium text-gray-800">${nom}</span>
                     <div class="flex gap-2">
-                        <button onclick="setStatus(${index}, 'p')" class="w-10 h-10 rounded-lg border-2 border-green-500 text-green-600 font-bold hover:bg-green-500 hover:text-white transition">P</button>
-                        <button onclick="setStatus(${index}, 'a')" class="w-10 h-10 rounded-lg border-2 border-red-500 text-red-600 font-bold hover:bg-red-500 hover:text-white transition">A</button>
-                        <button onclick="setStatus(${index}, 'r')" class="w-10 h-10 rounded-lg border-2 border-orange-500 text-orange-600 font-bold hover:bg-orange-500 hover:text-white transition">R</button>
+                        <button onclick="setStatus(${index}, 'p')" class="w-9 h-9 rounded border-2 border-green-500 text-green-600 font-bold hover:bg-green-500 hover:text-white transition">P</button>
+                        <button onclick="setStatus(${index}, 'a')" class="w-9 h-9 rounded border-2 border-red-500 text-red-600 font-bold hover:bg-red-500 hover:text-white transition">A</button>
+                        <button onclick="setStatus(${index}, 'r')" class="w-9 h-9 rounded border-2 border-orange-500 text-orange-600 font-bold hover:bg-orange-500 hover:text-white transition">R</button>
                     </div>
                 `;
                 container.appendChild(div);
@@ -108,45 +133,39 @@
             row.classList.add(`status-${status}`);
         }
 
-        async function envoyerVersGoogle() {
+        // 3. Envoyer les résultats à Google Sheets
+        async function envoyerAbsences() {
             const btn = document.getElementById('btn-save');
-            const groupeNom = document.getElementById('select-groupe').value;
+            const groupe = document.getElementById('select-groupe').value;
+            const seance = document.getElementById('select-seance').value;
             
-            // Animation chargement
             btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Envoi en cours...`;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Envoi...`;
 
-            const presences = [];
+            const resultats = [];
             document.querySelectorAll('#liste-container > div').forEach(row => {
-                let statut = "Présent";
-                if (row.classList.contains('status-a')) statut = "Absent";
-                if (row.classList.contains('status-r')) statut = "Retard";
-                presences.push({ nom: row.dataset.nom, statut: statut });
+                let s = "Présent";
+                if(row.classList.contains('status-a')) s = "Absent";
+                if(row.classList.contains('status-r')) s = "Retard";
+                resultats.push({ nom: row.dataset.nom, statut: s });
             });
-
-            const payload = {
-                groupe: groupeNom,
-                seance: seanceActuelle,
-                presences: presences
-            };
 
             try {
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ groupe, seance, presences: resultats })
                 });
-                alert("✅ Appel enregistré pour " + groupeNom);
-            } catch (error) {
-                alert("❌ Erreur de connexion");
-                console.error(error);
+                alert("Appel enregistré avec succès !");
+            } catch (e) {
+                alert("Erreur lors de l'enregistrement.");
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> Enregistrer dans le Cloud`;
+                btn.innerHTML = `<i class="fas fa-save"></i> Enregistrer l'appel`;
             }
         }
 
-        // Initialisation
-        changerGroupe();
+        // Démarrage
+        window.onload = chargerDonnees;
     </script>
 </body>
 </html>
