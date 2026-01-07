@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OFPPT - Suivi des Absences</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .status-p { border-left: 6px solid #22c55e; }
+        .status-a { border-left: 6px solid #ef4444; background-color: #fef2f2; }
+        .status-r { border-left: 6px solid #f97316; background-color: #fff7ed; }
+        .active-btn { background-color: #1e40af !important; color: white !important; border-bottom: 4px solid #1d4ed8; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <nav class="bg-blue-800 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="font-bold text-lg"><i class="fas fa-user-check mr-2"></i> OFPPT Absences</h1>
+            <div id="date-now" class="text-sm opacity-80"></div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 max-w-2xl">
+        
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Choisir le Groupe</label>
+                <select id="select-groupe" onchange="changerGroupe()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg font-semibold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="DEV101">Groupe DEV101</option>
+                    <option value="DEV102">Groupe DEV102</option>
+                    <option value="INFO201">Groupe INFO201</option>
+                    <option value="INFO202">Groupe INFO202</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Séance</label>
+                <div class="flex gap-2">
+                    <button onclick="setSeance('Matin', this)" class="seance-btn flex-1 py-2 rounded bg-gray-100 active-btn">Matin</button>
+                    <button onclick="setSeance('Après-midi', this)" class="seance-btn flex-1 py-2 rounded bg-gray-100">Après-midi</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="liste-container" class="space-y-3 mb-24">
+            </div>
+
+        <div class="fixed bottom-0 left-0 right-0 p-4 bg-gray-100 border-t border-gray-200">
+            <div class="max-w-2xl mx-auto">
+                <button onclick="envoyerVersGoogle()" id="btn-save" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold shadow-xl hover:bg-blue-800 flex items-center justify-center gap-3 transition-all active:scale-95">
+                    <i class="fas fa-cloud-upload-alt"></i> Enregistrer dans le Cloud
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxml86Mi4tMDjIb8GjfsG8mmdNqcRv06cUUeL6auNE-f5U42Nz_ukthLE7t7VFJrLsQ/exec"; // <--- METTEZ VOTRE LIEN ICI
+
+        const GROUPES = {
+            "DEV101": ["AMRANI Ahmed", "BENNANI Bakr", "CHAKIR Driss", "DAOUDI Fatine", "EL FASSI Omar"],
+            "DEV102": ["GUESSOUS Sara", "HASSANI Khalid", "IDRISSI Leila", "JABRI Amina"],
+            "INFO201": ["KADIRI Youssef", "LALAMI Meriem", "MAZROUI Anas", "NACIRI Houda"],
+            "INFO202": ["OUAZZANI Sami", "QASMI Rim", "RIZKI Adam", "SADIKI Yasmine"]
+        };
+
+        let seanceActuelle = "Matin";
+
+        // --- LOGIQUE ---
+
+        // Afficher la date
+        document.getElementById('date-now').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        function setSeance(val, btn) {
+            seanceActuelle = val;
+            document.querySelectorAll('.seance-btn').forEach(b => b.classList.remove('active-btn'));
+            btn.classList.add('active-btn');
+        }
+
+        function changerGroupe() {
+            const groupeNom = document.getElementById('select-groupe').value;
+            const container = document.getElementById('liste-container');
+            container.innerHTML = "";
+
+            GROUPES[groupeNom].forEach((nom, index) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-4 bg-white rounded-lg shadow-sm transition status-p";
+                div.dataset.nom = nom;
+                div.id = `row-${index}`;
+                div.innerHTML = `
+                    <span class="font-semibold text-gray-700">${nom}</span>
+                    <div class="flex gap-2">
+                        <button onclick="setStatus(${index}, 'p')" class="w-10 h-10 rounded-lg border-2 border-green-500 text-green-600 font-bold hover:bg-green-500 hover:text-white transition">P</button>
+                        <button onclick="setStatus(${index}, 'a')" class="w-10 h-10 rounded-lg border-2 border-red-500 text-red-600 font-bold hover:bg-red-500 hover:text-white transition">A</button>
+                        <button onclick="setStatus(${index}, 'r')" class="w-10 h-10 rounded-lg border-2 border-orange-500 text-orange-600 font-bold hover:bg-orange-500 hover:text-white transition">R</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function setStatus(index, status) {
+            const row = document.getElementById(`row-${index}`);
+            row.classList.remove('status-p', 'status-a', 'status-r');
+            row.classList.add(`status-${status}`);
+        }
+
+        async function envoyerVersGoogle() {
+            const btn = document.getElementById('btn-save');
+            const groupeNom = document.getElementById('select-groupe').value;
+            
+            // Animation chargement
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Envoi en cours...`;
+
+            const presences = [];
+            document.querySelectorAll('#liste-container > div').forEach(row => {
+                let statut = "Présent";
+                if (row.classList.contains('status-a')) statut = "Absent";
+                if (row.classList.contains('status-r')) statut = "Retard";
+                presences.push({ nom: row.dataset.nom, statut: statut });
+            });
+
+            const payload = {
+                groupe: groupeNom,
+                seance: seanceActuelle,
+                presences: presences
+            };
+
+            try {
+                await fetch(URL_SCRIPT, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                alert("✅ Appel enregistré pour " + groupeNom);
+            } catch (error) {
+                alert("❌ Erreur de connexion");
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> Enregistrer dans le Cloud`;
+            }
+        }
+
+        // Initialisation
+        changerGroupe();
+    </script>
+</body>
+</html>
