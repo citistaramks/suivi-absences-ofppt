@@ -3,27 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OFPPT - Gestion Dynamique</title>
+    <title>OFPPT - Suivi Absents v3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .status-p { border-left: 6px solid #22c55e; background-color: white; }
-        .status-a { border-left: 6px solid #ef4444; background-color: #fef2f2; }
-        .status-r { border-left: 6px solid #f97316; background-color: #fff7ed; }
-        .active-btn { background-color: #1e40af !important; color: white !important; }
-        .loader { border-top-color: #1e40af; animation: spinner 1.5s linear infinite; }
+        .is-absent { border-left: 8px solid #ef4444; background-color: #fef2f2; }
+        .is-present { border-left: 8px solid #e5e7eb; background-color: white; }
+        .loader { border-top-color: #1e40af; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .stagiaire-card { user-select: none; -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen pb-24">
+<body class="bg-gray-100 min-h-screen pb-32">
 
     <nav class="bg-blue-900 text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
             <div>
-                <h1 class="font-bold text-lg">OFPPT Appels</h1>
-                <p id="date-display" class="text-xs opacity-75"></p>
+                <h1 class="font-bold text-lg leading-none">OFPPT Appels</h1>
+                <p id="date-display" class="text-[10px] opacity-75 mt-1 uppercase tracking-widest"></p>
             </div>
-            <button onclick="chargerDonnees()" class="p-2 hover:bg-blue-800 rounded-full transition">
+            <button onclick="chargerDonnees()" class="p-2 hover:bg-blue-800 rounded-full transition active:rotate-180 duration-500">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
@@ -31,140 +30,162 @@
 
     <div class="container mx-auto p-4 max-w-2xl">
         
-        <div id="loading-overlay" class="hidden text-center py-10">
+        <div id="loading-overlay" class="text-center py-20">
             <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 mx-auto"></div>
-            <p class="text-gray-600 font-medium">Synchronisation avec Google Sheets...</p>
+            <p class="text-gray-600 font-medium italic">Synchronisation en cours...</p>
         </div>
 
-        <div id="main-content">
-            <div class="bg-white p-4 rounded-xl shadow-sm mb-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+        <div id="main-content" class="hidden">
+            <div class="bg-white p-5 rounded-2xl shadow-sm mb-4 space-y-4 border border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Groupe</label>
-                        <select id="select-groupe" onchange="afficherStagiaires()" class="w-full p-2 bg-gray-50 border rounded-lg font-bold text-blue-900 outline-none">
-                            </select>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Groupe</label>
+                        <select id="select-groupe" onchange="afficherStagiaires()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-blue-900 outline-none">
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Séance</label>
-                        <select id="select-seance" class="w-full p-2 bg-gray-50 border rounded-lg font-bold text-blue-900 outline-none">
-                            <option value="Matin">Matin</option>
-                            <option value="Après-midi">Après-midi</option>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Séance</label>
+                        <select id="select-seance" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-blue-900 outline-none">
+                            <option value="S1: 08:30 - 11:00">S1 : 08:30 - 11:00</option>
+                            <option value="S2: 11:00 - 13:30">S2 : 11:00 - 13:30</option>
+                            <option value="S3: 13:30 - 16:00">S3 : 13:30 - 16:00</option>
+                            <option value="S4: 16:00 - 18:30">S4 : 16:00 - 18:30</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div id="liste-container" class="space-y-3">
-                </div>
-        </div>
+            <button onclick="validerToutPresent()" class="w-full mb-6 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold hover:bg-green-100 transition flex items-center justify-center gap-2">
+                <i class="fas fa-users"></i> TOUT LE MONDE EST PRÉSENT
+            </button>
 
+            <div id="liste-container" class="space-y-2">
+            </div>
+        </div>
     </div>
 
-    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl">
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t shadow-2xl z-40">
         <div class="container mx-auto max-w-2xl">
-            <button onclick="envoyerAbsences()" id="btn-save" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-blue-800 transition">
-                <i class="fas fa-save"></i> Enregistrer l'appel
+            <button onclick="envoyerAbsences()" id="btn-save" class="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                <i class="fas fa-paper-plane"></i> ENREGISTRER LES ABSENTS
             </button>
         </div>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxml86Mi4tMDjIb8GjfsG8mmdNqcRv06cUUeL6auNE-f5U42Nz_ukthLE7t7VFJrLsQ/exec"; // <--- REMPLACEZ PAR VOTRE LIEN
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxml86Mi4tMDjIb8GjfsG8mmdNqcRv06cUUeL6auNE-f5U42Nz_ukthLE7t7VFJrLsQ/exec"; 
         let DATA_BASE = {}; 
 
-        // Affichage de la date
-        document.getElementById('date-display').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        document.getElementById('date-display').innerText = new Date().toLocaleDateString('fr-FR', { 
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+        });
 
-        // 1. Charger les stagiaires depuis Google Sheets
         async function chargerDonnees() {
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            document.getElementById('main-content').classList.add('opacity-25');
-            
+            const loader = document.getElementById('loading-overlay');
+            const content = document.getElementById('main-content');
+            loader.classList.remove('hidden');
+            content.classList.add('hidden');
             try {
                 const response = await fetch(URL_SCRIPT);
                 DATA_BASE = await response.json();
-                
                 const select = document.getElementById('select-groupe');
                 select.innerHTML = "";
-                
-                Object.keys(DATA_BASE).forEach(groupe => {
-                    let opt = new Option(groupe, groupe);
-                    select.add(opt);
+                Object.keys(DATA_BASE).sort().forEach(groupe => {
+                    select.add(new Option(groupe, groupe));
                 });
-                
                 afficherStagiaires();
+                loader.classList.add('hidden');
+                content.classList.remove('hidden');
             } catch (error) {
-                alert("Erreur de connexion avec la base de données.");
-            } finally {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                document.getElementById('main-content').classList.remove('opacity-25');
+                alert("Erreur de synchronisation.");
             }
         }
 
-        // 2. Afficher la liste du groupe sélectionné
         function afficherStagiaires() {
             const groupe = document.getElementById('select-groupe').value;
             const container = document.getElementById('liste-container');
             container.innerHTML = "";
-            
             if (!DATA_BASE[groupe]) return;
-
-            DATA_BASE[groupe].forEach((nom, index) => {
+            DATA_BASE[groupe].sort().forEach((nom, index) => {
                 const div = document.createElement('div');
-                div.className = "flex items-center justify-between p-4 rounded-lg shadow-sm transition status-p";
+                div.className = "stagiaire-card flex items-center justify-between p-4 rounded-xl shadow-sm border border-gray-100 transition-all is-present cursor-pointer";
                 div.id = `row-${index}`;
+                div.onclick = () => toggleAbsent(index);
                 div.dataset.nom = nom;
+                div.dataset.statut = "Présent";
                 div.innerHTML = `
-                    <span class="font-medium text-gray-800">${nom}</span>
-                    <div class="flex gap-2">
-                        <button onclick="setStatus(${index}, 'p')" class="w-9 h-9 rounded border-2 border-green-500 text-green-600 font-bold hover:bg-green-500 hover:text-white transition">P</button>
-                        <button onclick="setStatus(${index}, 'a')" class="w-9 h-9 rounded border-2 border-red-500 text-red-600 font-bold hover:bg-red-500 hover:text-white transition">A</button>
-                        <button onclick="setStatus(${index}, 'r')" class="w-9 h-9 rounded border-2 border-orange-500 text-orange-600 font-bold hover:bg-orange-500 hover:text-white transition">R</button>
+                    <span class="font-bold text-gray-700 text-sm md:text-base">${nom}</span>
+                    <div id="status-icon-${index}" class="text-gray-200">
+                        <i class="fas fa-check-circle text-xl"></i>
                     </div>
                 `;
                 container.appendChild(div);
             });
+            window.scrollTo(0, 0);
         }
 
-        function setStatus(index, status) {
+        function toggleAbsent(index) {
             const row = document.getElementById(`row-${index}`);
-            row.classList.remove('status-p', 'status-a', 'status-r');
-            row.classList.add(`status-${status}`);
-        }
-
-        // 3. Envoyer les résultats à Google Sheets
-        async function envoyerAbsences() {
-            const btn = document.getElementById('btn-save');
-            const groupe = document.getElementById('select-groupe').value;
-            const seance = document.getElementById('select-seance').value;
-            
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Envoi...`;
-
-            const resultats = [];
-            document.querySelectorAll('#liste-container > div').forEach(row => {
-                let s = "Présent";
-                if(row.classList.contains('status-a')) s = "Absent";
-                if(row.classList.contains('status-r')) s = "Retard";
-                resultats.push({ nom: row.dataset.nom, statut: s });
-            });
-
-            try {
-                await fetch(URL_SCRIPT, {
-                    method: 'POST',
-                    body: JSON.stringify({ groupe, seance, presences: resultats })
-                });
-                alert("Appel enregistré avec succès !");
-            } catch (e) {
-                alert("Erreur lors de l'enregistrement.");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-save"></i> Enregistrer l'appel`;
+            const icon = document.getElementById(`status-icon-${index}`);
+            if (row.dataset.statut === "Présent") {
+                row.dataset.statut = "Absent";
+                row.classList.replace('is-present', 'is-absent');
+                icon.innerHTML = '<i class="fas fa-times-circle text-xl text-red-600 animate-pulse"></i>';
+                icon.classList.replace('text-gray-200', 'text-red-600');
+            } else {
+                row.dataset.statut = "Présent";
+                row.classList.replace('is-absent', 'is-present');
+                icon.innerHTML = '<i class="fas fa-check-circle text-xl text-gray-200"></i>';
+                icon.classList.replace('text-red-600', 'text-gray-200');
             }
         }
 
-        // Démarrage
+        // --- NOUVELLE FONCTION : TOUT PRÉSENT ---
+        async function validerToutPresent() {
+            const groupe = document.getElementById('select-groupe').value;
+            const seance = document.getElementById('select-seance').value;
+            if(!confirm(`Confirmer que TOUT LE MONDE est présent pour ${groupe} (${seance}) ?`)) return;
+            
+            // On envoie une ligne factice pour marquer la séance
+            const data = { groupe, seance, presences: [{ nom: "--- AUCUN ABSENT ---", statut: "Présent" }] };
+            envoiFinal(data);
+        }
+
+        async function envoyerAbsences() {
+            const groupe = document.getElementById('select-groupe').value;
+            const seance = document.getElementById('select-seance').value;
+            const absents = [];
+            document.querySelectorAll('#liste-container > div').forEach(row => {
+                if(row.dataset.statut === "Absent") {
+                    absents.push({ nom: row.dataset.nom, statut: "Absent" });
+                }
+            });
+
+            if(absents.length === 0) {
+                alert("Aucun absent sélectionné. Utilisez le bouton 'Tout le monde est présent' si besoin.");
+                return;
+            }
+
+            if(!confirm(`Enregistrer ${absents.length} absence(s) ?`)) return;
+            envoiFinal({ groupe, seance, presences: absents });
+        }
+
+        async function envoiFinal(payload) {
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ENVOI EN COURS...`;
+            try {
+                await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify(payload) });
+                alert("⭐ Enregistré avec succès !");
+                afficherStagiaires(); 
+            } catch (e) {
+                alert("❌ Erreur d'envoi.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-paper-plane"></i> ENREGISTRER LES ABSENTS`;
+            }
+        }
+
         window.onload = chargerDonnees;
     </script>
 </body>
